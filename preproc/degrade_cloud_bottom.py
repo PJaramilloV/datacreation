@@ -17,6 +17,9 @@ parser.add_argument('--voxsize', type=int, default=256, help='length of the cubi
 parser.add_argument('--jagged', type=float, default=0.25, help='percentage of the bottom body above the complete breakage to be part of a partial breakage (additive with --breakage)')
 parser.add_argument('--angle', type=float, default=0.75, help='depression angle (degrees [0-90[) of the jagged breakage')
 parser.add_argument('--jags', type=float, default=7, help='number of "teeths" protuding from the upper body through the breakage')
+parser.add_argument('--maxx', type=float, default=0, help='maximum rotation appliable to the objects in the X axis in both directions (in degrees)')
+parser.add_argument('--maxy', type=float, default=0, help='maximum rotation appliable to the objects in the Y axis in both directions (in degrees)')
+parser.add_argument('--maxz', type=float, default=0, help='maximum rotation appliable to the objects in the Z axis in both directions (in degrees)')
 opt = parser.parse_args()
 breakage = opt.breakage
 variance = opt.variance
@@ -88,6 +91,35 @@ def remove_bottom_points_v2(point_cloud, jagged, jagged_angle, teeth):
 
     return point_cloud, jagged_cloud
 
+def rotX(theta):
+    "Theta in radians"
+    return np.array([[1, 0, 0],
+                     [0, np.cos(theta), -np.sin(theta)],
+                     [0, np.sin(theta), np.cos(theta)]])
+
+def rotY(theta):
+    "Theta in radians"
+    return np.array([[np.cos(theta), 0, np.sin(theta)],
+                     [0, 1, 0],
+                     [-np.sin(theta), 0, np.cos(theta)]])
+
+def rotZ(theta):
+    "Theta in radians"
+    return np.array([[np.cos(theta), -np.sin(theta), 0],
+                     [np.sin(theta), np.cos(theta), 0],
+                     [0, 0, 1]])
+
+def rotate_points(points):
+    theta_x, theta_y, theta_z = opt.maxx, opt.maxy, opt.maxz
+    thetas = [th * np.pi /180 for th in [theta_x, theta_y, theta_z]]
+    for th, rotation in zip(thetas, [rotX, rotY, rotZ]):
+        if not th:
+            continue
+        applied_th = (1 - 2* np.random.random()) * th
+        points = np.dot(points, rotation(applied_th).T)
+    return points
+
+
 def volume_from_points(points):
     max_val = np.max(points)
     points = (points / max_val) * voxsize * 0.975
@@ -104,6 +136,7 @@ def remove_bottom_points(point_cloud):
 
 def break_piece(npy_path):
     pc = np.load(npy_path)
+    pc = rotate_points(pc)
     broken_cloud, piece_cloud = remove_bottom_points(pc)
     return broken_cloud, piece_cloud
 
@@ -154,8 +187,8 @@ def dev():
     
 
     # Load the point cloud data from .npy file
-    data_dir = 'data/pjaramil/__precol/CH_mesh/bowl/test/'
-    file_path = "bowl_0065.npy"  # Update this with your file path
+    data_dir = 'path/to/data' # 'data/pjaramil/__precol/CH_mesh/bowl/test/' (PJV)
+    file_path = "file.npy"  # Update this with your file path
     point_cloud_data = np.load(data_dir+file_path)
     points = np.random.randint(0, point_cloud_data.shape[0], 32768//2)
     point_cloud_data = point_cloud_data[points, :]
@@ -165,8 +198,8 @@ def dev():
     np.save(data_dir+'_tmp.npy', fallen_out)
 
     # Save or use the filtered point cloud data as required
-    subprocess.run(['python','code/view_npy.py',data_dir,'_tmp.npy'])
-    subprocess.run(['python','code/view_npy.py',data_dir,'_candidate.npy'])
+    subprocess.run(['python','utils/view_npy.py',data_dir,'_tmp.npy'])
+    subprocess.run(['python','utils/view_npy.py',data_dir,'_candidate.npy'])
 
 if __name__ == '__main__':
     if not dataset:
@@ -174,7 +207,7 @@ if __name__ == '__main__':
         exit()
 
     # ---- Mass processing ----
-    data_dir = 'data/pjaramil/'
+    data_dir = 'path/to/data' # 'data/pjaramil/' (PJV)
     threads = opt.threads
     parallel = opt.multiprocessing
     directory = os.path.join(data_dir, dataset, 'complete')
