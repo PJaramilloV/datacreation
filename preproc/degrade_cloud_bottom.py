@@ -112,12 +112,16 @@ def rotZ(theta):
 def rotate_points(points):
     theta_x, theta_y, theta_z = opt.maxx, opt.maxy, opt.maxz
     thetas = [th * np.pi /180 for th in [theta_x, theta_y, theta_z]]
+    # np.random.random doesn't work randomly through threads
+    #   solution: make a random state taking a coordinate sum from the 
+    #             coordinates of a point of the object shape
+    rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )))
     for th, rotation in zip(thetas, [rotX, rotY, rotZ]):
         if not th:
             continue
-        applied_th = (1 - 2* np.random.random()) * th
+        applied_th = (1 - 2* rs.random()) * th
         points = np.dot(points, rotation(applied_th).T)
-    return points
+    return points, rs
 
 
 def volume_from_points(points):
@@ -126,18 +130,18 @@ def volume_from_points(points):
     volume, _ = np.histogramdd(points, bins=voxsize, range=grid_range)
     return volume
 
-def remove_bottom_points(point_cloud):
+def remove_bottom_points(point_cloud, rand_state=np.random.RandomState(0)):
     y_min = np.min(point_cloud[:, 1]) 
     y_max = np.max(point_cloud[:, 1])
     
-    full_breakoff = y_min + (y_max - y_min) * breakage * (1 + variance * (1 - 2 * np.random.random()) ) 
+    full_breakoff = y_min + (y_max - y_min) * breakage * (1 + variance * (1 - 2 * rand_state.random()) ) 
     broken, piece = point_cloud[point_cloud[:, 1] > full_breakoff], point_cloud[point_cloud[:, 1] <= full_breakoff]
     return broken, piece
 
 def break_piece(npy_path):
     pc = np.load(npy_path)
-    pc = rotate_points(pc)
-    broken_cloud, piece_cloud = remove_bottom_points(pc)
+    pc, rs = rotate_points(pc)
+    broken_cloud, piece_cloud = remove_bottom_points(pc, rs)
     return broken_cloud, piece_cloud
 
 def break_and_save(npy_path):
