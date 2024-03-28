@@ -180,10 +180,6 @@ def break_and_save(npy_path, n):
         save_obj(repair_npy_path_i, piece)
 
 
-def parallel_break_and_save(args):
-    return break_and_save(args[0], args[1])
-
-
 def save_obj(npy_path, points):
     if len(points.shape) != 3:
         if points.shape[0] == 3:
@@ -199,7 +195,8 @@ def save_obj(npy_path, points):
 
     mcubes.export_obj(v, f, obj_path)
     
-
+def parallel_break_and_save(args):
+    return break_and_save(args[0], args[1])
 
 def dev():
     jagged = opt.jagged + breakage
@@ -264,4 +261,4 @@ if __name__ == '__main__':
         pool.close()
     else:
         for data in tqdm(database):
-            break_and_save(data, n_breaks)
+            break_and_save(data, n_breaks, total=len(database))
