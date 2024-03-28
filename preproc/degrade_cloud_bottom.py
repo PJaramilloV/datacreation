@@ -157,9 +157,11 @@ def break_piece(npy_path, break_number):
     return broken_cloud, piece_cloud
 
 def break_and_save(npy_path, n):
-    broken_npy_path = npy_path.replace('complete', 'broken')
-    repair_npy_path = npy_path.replace('complete', 'repair')
+    complete_npy_path = npy_path.replace('collection', 'complete')
+    broken_npy_path = npy_path.replace('collection', 'broken')
+    repair_npy_path = npy_path.replace('collection', 'repair')
 
+    os.makedirs(os.path.dirname(complete_npy_path), exist_ok=True)
     os.makedirs(os.path.dirname(broken_npy_path), exist_ok=True)
     os.makedirs(os.path.dirname(repair_npy_path), exist_ok=True)
 
@@ -171,7 +173,7 @@ def break_and_save(npy_path, n):
         serial_name = f"_{i}{ext}"
         broken_npy_path_i = broken_npy_path.replace(ext, serial_name)
         repair_npy_path_i = repair_npy_path.replace(ext, serial_name)
-        complete_npy_path_i = npy_path.replace(ext, serial_name)
+        complete_npy_path_i = complete_npy_path.replace(ext, serial_name)
         np.save(broken_npy_path_i, broken)
         np.save(repair_npy_path_i, piece)
         shutil.copy(npy_path, complete_npy_path_i)
@@ -235,11 +237,11 @@ if __name__ == '__main__':
     override = opt.forced
     threads = opt.threads
     parallel = opt.multiprocessing
-    directory = os.path.join(data_dir, dataset, 'complete')
+    directory = os.path.join(data_dir, dataset, 'collection')
     counter = 0
     database = []
     for root, dirs, files in os.walk(directory, topdown=False):
-        repair_dir = root.replace('complete', 'repair')
+        repair_dir = root.replace('collection', 'repair')
         for filename in files:
             if filename.endswith('.npy'):
                 counter += 1
@@ -262,3 +264,15 @@ if __name__ == '__main__':
     else:
         for data in tqdm(database):
             break_and_save(data, n_breaks, total=len(database))
+
+    dataset_dir = os.path.join(data_dir, dataset)
+    for file in [dataset, 'train', 'test']:
+        csv_record = os.path.join(dataset_dir, f'__collection_{file}.csv')
+        objects = []
+        with open(csv_record, 'r') as f:
+            objects.append(f.readline())
+        with open(csv_record.replace('__collection_', ''), 'w') as f:
+            for line in objects:
+                path = line.replace('.npy', '')
+                for i in range(opt.n_breaks):
+                    f.write(f'{path}_{i}.npy\n')
