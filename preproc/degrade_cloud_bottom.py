@@ -110,19 +110,24 @@ def rotZ(theta):
                      [np.sin(theta), np.cos(theta), 0],
                      [0, 0, 1]])
 
-def rotate_points(points):
+def make_rotation_matrix(points):
+    """Uses points' data for random rotation seed. Returns points, randomState and rotation matrix"""
     theta_x, theta_y, theta_z = opt.maxx, opt.maxy, opt.maxz
     thetas = [th * np.pi /180 for th in [theta_x, theta_y, theta_z]]
+    identity = np.identity(3) 
     # np.random.random doesn't work randomly through threads
     #   solution: make a random state taking a coordinate sum from the 
     #             coordinates of a point of the object shape
     rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )%2**31))
-    for th, rotation in zip(thetas, [rotX, rotY, rotZ]):
+    for th, rotation, i in zip(thetas, [rotX, rotY, rotZ]):
         if not th:
             continue
         applied_th = (1 - 2* rs.random()) * th
-        points = np.dot(points, rotation(applied_th).T)
-    return points, rs
+        identity = rotate(identity, rotation(applied_th))
+    return points, rs, identity
+
+def rotate(points, rotation_mat):
+    return np.dot(points, rotation_mat)
 
 
 def volume_from_points(points):
@@ -141,8 +146,11 @@ def remove_bottom_points(point_cloud, rand_state=np.random.RandomState(0)):
 
 def break_piece(npy_path):
     pc = np.load(npy_path)
-    pc, rs = rotate_points(pc)
+    pc, rs, rot_mat = make_rotation_matrix(pc)
+    pc = rotate(pc, rot_mat)
     broken_cloud, piece_cloud = remove_bottom_points(pc, rs)
+    broken_cloud = rotate(broken_cloud, rot_mat.T)
+    piece_cloud = rotate(piece_cloud, rot_mat.T)
     return broken_cloud, piece_cloud
 
 def break_and_save(npy_path):
