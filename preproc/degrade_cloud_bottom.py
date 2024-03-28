@@ -8,6 +8,7 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--multiprocessing', type=eval, default=True, help="set multiprocessing True/False")
+parser.add_argument('--forced', type=eval, default=False, help='Override created breaks')
 parser.add_argument('--threads', type=int, default=14, help="define number of threads")
 parser.add_argument('--dataset', type=str, default='', help='directory housing a dataset complete objects .npy files') 
 parser.add_argument('--breakage', type=float, default=0.20, help='percentage of the bottom body to be broken off completely')
@@ -118,8 +119,8 @@ def make_rotation_matrix(points):
     # np.random.random doesn't work randomly through threads
     #   solution: make a random state taking a coordinate sum from the 
     #             coordinates of a point of the object shape
-    rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )%2**31))
-    for th, rotation, i in zip(thetas, [rotX, rotY, rotZ]):
+    rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )% (1<<30) ))
+    for th, rotation in zip(thetas, [rotX, rotY, rotZ]):
         if not th:
             continue
         applied_th = (1 - 2* rs.random()) * th
@@ -158,6 +159,9 @@ def break_and_save(npy_path):
 
     broken_npy_path = npy_path.replace('complete', 'broken')
     repair_npy_path = npy_path.replace('complete', 'repair')
+
+    os.makedirs(os.path.dirname(broken_npy_path), exist_ok=True)
+    os.makedirs(os.path.dirname(repair_npy_path), exist_ok=True)
 
     np.save(broken_npy_path, broken)
     np.save(repair_npy_path, piece)
@@ -221,6 +225,7 @@ if __name__ == '__main__':
 
     # ---- Mass processing ----
     data_dir = 'data/pjaramil/' # (PJV)
+    override = opt.forced
     threads = opt.threads
     parallel = opt.multiprocessing
     directory = os.path.join(data_dir, dataset, 'complete')
@@ -232,7 +237,7 @@ if __name__ == '__main__':
         for filename in files:
             if filename.endswith('.npy'):
                 counter += 1
-                if not os.path.exists(os.path.join(repair_dir, filename)):
+                if not os.path.exists(os.path.join(repair_dir, filename)) or override:
                     datapoint = ''
                     datapoint = os.path.join(root, filename)
                     database.append(datapoint)
@@ -245,3 +250,6 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             exit()
         pool.close()
+    else:
+        for data in tqdm(database):
+            break_and_save(data)
