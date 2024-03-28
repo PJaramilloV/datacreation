@@ -3,7 +3,6 @@ from tqdm import tqdm
 import numpy as np
 import subprocess 
 import argparse
-import random
 import mcubes
 import os
 
@@ -20,6 +19,7 @@ parser.add_argument('--jags', type=float, default=7, help='number of "teeths" pr
 parser.add_argument('--maxx', type=float, default=0, help='maximum rotation appliable to the objects in the X axis in both directions (in degrees)')
 parser.add_argument('--maxy', type=float, default=0, help='maximum rotation appliable to the objects in the Y axis in both directions (in degrees)')
 parser.add_argument('--maxz', type=float, default=0, help='maximum rotation appliable to the objects in the Z axis in both directions (in degrees)')
+parser.add_argument('--seed', type=int, default=1234, help='sets numpy random seed')
 opt = parser.parse_args()
 breakage = opt.breakage
 variance = opt.variance
@@ -27,6 +27,7 @@ dataset = opt.dataset
 voxsize = opt.voxsize
 grid_range = [(0,voxsize) for _ in range(3)]
 downward = np.array([0,-1,0])
+np.random.seed(opt.seed)
 
 def remove_bottom_points_v2(point_cloud, jagged, jagged_angle, teeth):
     #   EXPERIMENTAL - NOT WORKING
@@ -115,7 +116,7 @@ def rotate_points(points):
     # np.random.random doesn't work randomly through threads
     #   solution: make a random state taking a coordinate sum from the 
     #             coordinates of a point of the object shape
-    rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )))
+    rs = np.random.RandomState(int(sum( points[points.shape[0]//2]  )%2**31))
     for th, rotation in zip(thetas, [rotX, rotY, rotZ]):
         if not th:
             continue
@@ -211,7 +212,7 @@ if __name__ == '__main__':
         exit()
 
     # ---- Mass processing ----
-    data_dir = 'path/to/data' # 'data/pjaramil/' (PJV)
+    data_dir = 'data/pjaramil/' # (PJV)
     threads = opt.threads
     parallel = opt.multiprocessing
     directory = os.path.join(data_dir, dataset, 'complete')
@@ -223,7 +224,7 @@ if __name__ == '__main__':
         for filename in files:
             if filename.endswith('.npy'):
                 counter += 1
-                if  os.path.exists(os.path.join(repair_dir, filename)):
+                if not os.path.exists(os.path.join(repair_dir, filename)):
                     datapoint = ''
                     datapoint = os.path.join(root, filename)
                     database.append(datapoint)
