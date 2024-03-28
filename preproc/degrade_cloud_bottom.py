@@ -4,8 +4,8 @@ import numpy as np
 import subprocess 
 import argparse
 import mcubes
-import os
 import shutil
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--multiprocessing', type=eval, default=True, help="set multiprocessing True/False")
@@ -245,7 +245,7 @@ if __name__ == '__main__':
         for filename in files:
             if filename.endswith('.npy'):
                 counter += 1
-                if not os.path.exists(os.path.join(repair_dir, filename)) or override:
+                if not os.path.exists(os.path.join(repair_dir, f'{filename[:-4]}_0.npy')) or override:
                     datapoint = ''
                     datapoint = os.path.join(root, filename)
                     database.append(datapoint)
@@ -270,9 +270,11 @@ if __name__ == '__main__':
         csv_record = os.path.join(dataset_dir, f'__collection_{file}.csv')
         objects = []
         with open(csv_record, 'r') as f:
-            objects.append(f.readline())
+            while (line:= f.readline()):
+                objects.append(line)
         with open(csv_record.replace('__collection_', ''), 'w') as f:
             for line in objects:
-                path = line.replace('.npy', '')
+                path = line.replace('.npy\n', '')
+                path = path.replace('/collection/', '/complete/')
                 for i in range(opt.n_breaks):
                     f.write(f'{path}_{i}.npy\n')
