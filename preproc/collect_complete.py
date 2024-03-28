@@ -74,7 +74,6 @@ def process_dir(directory, dataset, restart=False):
     with open(dataset_test, 'a') as f:
         for file in test_list:
             f.write(f'{file}\n')
-    print(dataset_statement)
 
 
 if __name__ == '__main__':
