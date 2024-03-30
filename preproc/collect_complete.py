@@ -4,7 +4,7 @@ import shutil
 import os
 import re
 
-SCRIPT_DIR = os.path.dirname(os.path.relpath(__file__))
+DATA_DIR = ''
 datasets_prefix = {'MD40/bowl': 'MD', 'native':'NA', 'scanned':'SC', 'SN_bowl': 'SN'}
 ignored = ['sus']
 
@@ -43,8 +43,9 @@ def process_dir(directory, dataset, restart=False):
             
             for ext in ['.obj', '.off']:
                 mesh_file = file.replace('.npy', ext)
-                if os.path.exists(mesh_file):
-                    shutil.copy(os.path.join(root, mesh_file), f'/{new_name.replace(".npy", mesh_file)}')
+                mesh_path = os.path.join(root, mesh_file)
+                if os.path.exists(mesh_path):
+                    shutil.copy(mesh_path, f'/{new_name.replace(".npy", ext)}')
 
             shutil.copy(os.path.join(root, file), f'/{new_name}')
 
@@ -55,7 +56,6 @@ def process_dir(directory, dataset, restart=False):
             else:
                 train_list.append(relative_name)
                 
-
     if test_list == [] and dataset != 'scanned':
         donations = np.random.choice(
             range(0, len(train_list)), 
@@ -79,5 +79,5 @@ def process_dir(directory, dataset, restart=False):
 if __name__ == '__main__':
     restart = True
     for directory in datasets_prefix:
-        process_dir(SCRIPT_DIR, directory, restart=restart)
+        process_dir(DATA_DIR, directory, restart=restart)
         restart = False
