@@ -23,11 +23,13 @@ parser.add_argument('--maxy', type=float, default=0, help='maximum rotation appl
 parser.add_argument('--maxz', type=float, default=0, help='maximum rotation appliable to the objects in the Z axis in both directions (in degrees)')
 parser.add_argument('--seed', type=int, default=1234, help='sets numpy random seed')
 parser.add_argument('--n_breaks', type=int, default=1, help='how many broken objects per object')
+parser.add_argument('--exclude_aug', type=str, default='', help='A string pattern to match to file names to exclude them from augmentation')
 opt = parser.parse_args()
 breakage = opt.breakage
 variance = opt.variance
 dataset = opt.dataset
 voxsize = opt.voxsize
+exclude_aug = opt.exclude_aug
 grid_range = [(0,voxsize) for _ in range(3)]
 downward = np.array([0,-1,0])
 np.random.seed(opt.seed)
@@ -165,6 +167,10 @@ def break_and_save(npy_path, n):
     os.makedirs(os.path.dirname(broken_npy_path), exist_ok=True)
     os.makedirs(os.path.dirname(repair_npy_path), exist_ok=True)
 
+    if exclude_aug:
+        file = npy_path.split('/')[-1]
+        if exclude_aug in file:
+            n = 1
     for i in range(n):
         broken, piece = break_piece(npy_path, i)
         
@@ -234,8 +240,9 @@ if __name__ == '__main__':
 
     # ---- Mass processing ----
     data_dir = 'data/pjaramil/' # (PJV)
-    override = opt.forced
     threads = opt.threads
+    override = opt.forced
+    n_breaks = opt.n_breaks
     parallel = opt.multiprocessing
     directory = os.path.join(data_dir, dataset, 'collection')
     counter = 0
@@ -245,13 +252,14 @@ if __name__ == '__main__':
         for filename in files:
             if filename.endswith('.npy'):
                 counter += 1
-                if not os.path.exists(os.path.join(repair_dir, f'{filename[:-4]}_0.npy')) or override:
+                # if enough ground truth samples exist, this object has already been processed
+                if not os.path.exists(os.path.join(repair_dir, f'{filename[:-4]}_{n_breaks}.npy')) or override:
                     datapoint = ''
                     datapoint = os.path.join(root, filename)
                     database.append(datapoint)
     print(f"Found {len(database) }/{counter} files unprocessed")
     
-    n_breaks = opt.n_breaks
+
     if parallel:
         n_breaks = [n_breaks] * len(database)
         pool = multiprocessing.Pool(threads)
@@ -265,7 +273,7 @@ if __name__ == '__main__':
         for data in tqdm(database):
             break_and_save(data, n_breaks, total=len(database))
 
-    dataset_dir = os.path.join(data_dir, dataset)
+    dataset_dir = os.path.join(data_dir, dataset) if '~' not in dataset else dataset
     for file in [dataset, 'train', 'test']:
         csv_record = os.path.join(dataset_dir, f'__collection_{file}.csv')
         objects = []
