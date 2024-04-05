@@ -7,6 +7,7 @@ import re
 DATA_DIR = ''
 datasets_prefix = {'MD40/bowl': 'MD', 'native':'NA', 'scanned':'SC', 'SN_bowl': 'SN'}
 ignored = ['sus']
+test_only_datasets = ['scanned']
 
 def delete(path):
     if os.path.exists(path):
@@ -56,7 +57,7 @@ def process_dir(directory, dataset, restart=False):
             else:
                 train_list.append(relative_name)
                 
-    if test_list == [] and dataset != 'scanned':
+    if test_list == [] and (not dataset in test_only_datasets):
         donations = np.random.choice(
             range(0, len(train_list)), 
             size= int(len(train_list)*.7), 
@@ -64,6 +65,10 @@ def process_dir(directory, dataset, restart=False):
         donations[::-1].sort() # reverse
         for idx in donations:
             test_list.append(train_list.pop(idx))
+    
+    if dataset in test_only_datasets:
+        test_list = [] + train_list
+        train_list = []
 
     with open(dataset_statement, 'a') as f:
         for file in obj_list:
